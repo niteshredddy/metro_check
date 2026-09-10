@@ -1,0 +1,43 @@
+databases:
+  - name: metrocheck-db
+    databaseName: metrocheck
+    user: metrocheck
+    # The database will be created on the free tier (expires after 90 days)
+    # Change this to 'starter' if you want a permanent database.
+    plan: free
+
+services:
+  # ─── BACKEND ────────────────────────────────────────────────────────
+  - type: web
+    name: metrocheck-backend
+    env: docker
+    rootDir: backend
+    # PyTorch and EasyOCR require RAM. The free tier (512MB) will likely crash.
+    # The 'starter' plan ($7/mo) provides reliable baseline memory, or use 'standard' ($15/mo) if you need faster OCR processing.
+    plan: starter
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: metrocheck-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CORS_ORIGINS
+        # Allow the frontend service to communicate with this backend once deployed
+        value: "*"
+
+  # ─── FRONTEND ───────────────────────────────────────────────────────
+  - type: web
+    name: metrocheck-frontend
+    env: static
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    plan: free
+    envVars:
+      - key: VITE_API_URL
+        # This automatically pulls the public URL of your backend service once it is deployed
+        fromService:
+          type: web
+          name: metrocheck-backend
+          envVarKey: RENDER_EXTERNAL_URL
